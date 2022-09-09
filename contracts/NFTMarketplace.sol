@@ -75,7 +75,7 @@ contract NFTMarketplace is ERC721URIStorage {
     function getAllNfts() public view returns (ItemListed[] memory) {
         uint256 totalNfts = _tokenIds.current();
 
-        ItemListed memory tokens = new ItemListed[](totalNfts);
+        ItemListed[] memory tokens = new ItemListed[](totalNfts);
 
         uint256 currentIndex = 0;
 
@@ -114,6 +114,49 @@ contract NFTMarketplace is ERC721URIStorage {
             }
         }
         return items;
+    }
+
+    function executeSale(uint256 tokenId) public payable {
+        uint price = idToListedToken[tokenId].price;
+        address seller = idToListedToken[tokenId].seller;
+        require(msg.value == price, "Please submit the asking price in order to complete the purchase");
+
+        //update the details of the token
+        idToListedToken[tokenId].isListed = true;
+        idToListedToken[tokenId].seller = payable(msg.sender);
+        _itemsSold.increment();
+
+        //Actually transfer the token to the new owner
+        _transfer(address(this), msg.sender, tokenId);
+        //approve the marketplace to sell NFTs on your behalf
+        approve(address(this), tokenId);
+
+        //Transfer the listing fee to the marketplace creator
+        payable(owner).transfer(listPrice);
+        //Transfer the proceeds from the sale to the seller of the NFT
+        payable(seller).transfer(msg.value);
+    }
+
+    function updateListPrice(uint256 _listPrice) public payable {
+        require(owner == msg.sender, "Only owner can update listing price");
+        listPrice = _listPrice;
+    }
+
+    function getListPrice() public view returns (uint256) {
+        return listPrice;
+    }
+
+    function getLatestIdToListedToken() public view returns (ItemListed memory) {
+        uint256 currentTokenId = _tokenIds.current();
+        return idToListedToken[currentTokenId];
+    }
+
+    function getListedTokenForId(uint256 tokenId) public view returns (ItemListed memory) {
+        return idToListedToken[tokenId];
+    }
+
+    function getCurrentToken() public view returns (uint256) {
+        return _tokenIds.current();
     }
 }
 
